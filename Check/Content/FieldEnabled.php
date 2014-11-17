@@ -1,22 +1,22 @@
 <?php
 /**
  * @file
- * Contains \SiteAudit\Check\Codebase\ManagedFileCount.
+ * Contains \SiteAudit\Check\Content\FieldEnabled.
  */
 
-class SiteAuditCheckCodebaseManagedFileCount extends SiteAuditCheckAbstract {
+class SiteAuditCheckContentFieldEnabled extends SiteAuditCheckAbstract {
   /**
    * Implements \SiteAudit\Check\Abstract\getLabel().
    */
   public function getLabel() {
-    return dt('Drupal managed file count');
+    return dt('Field status');
   }
 
   /**
    * Implements \SiteAudit\Check\Abstract\getDescription().
    */
   public function getDescription() {
-    return dt('Determine the count of Drupal managed files.');
+    return dt('Check to see if enabled');
   }
 
   /**
@@ -28,15 +28,15 @@ class SiteAuditCheckCodebaseManagedFileCount extends SiteAuditCheckAbstract {
    * Implements \SiteAudit\Check\Abstract\getResultInfo().
    */
   public function getResultInfo() {
-    return dt('Managed file count: @count', array(
-      '@count' => number_format($this->registry['managed_file_count']),
-    ));
+    return dt('Field is not enabled.');
   }
 
   /**
    * Implements \SiteAudit\Check\Abstract\getResultPass().
    */
-  public function getResultPass() {}
+  public function getResultPass() {
+    return dt('Field is enabled.');
+  }
 
   /**
    * Implements \SiteAudit\Check\Abstract\getResultWarn().
@@ -52,10 +52,10 @@ class SiteAuditCheckCodebaseManagedFileCount extends SiteAuditCheckAbstract {
    * Implements \SiteAudit\Check\Abstract\calculateScore().
    */
   public function calculateScore() {
-    $sql_query  = 'SELECT COUNT(fid) ';
-    $sql_query .= 'FROM {file_managed} ';
-    $sql_query .= 'WHERE status = 1 ';
-    $this->registry['managed_file_count'] = db_query($sql_query)->fetchField();
-    return SiteAuditCheckAbstract::AUDIT_CHECK_SCORE_INFO;
+    if (!module_exists('field')) {
+      $this->abort = TRUE;
+      return SiteAuditCheckAbstract::AUDIT_CHECK_SCORE_INFO;
+    }
+    return SiteAuditCheckAbstract::AUDIT_CHECK_SCORE_PASS;
   }
 }

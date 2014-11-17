@@ -37,14 +37,14 @@ class SiteAuditCheckStatusSystem extends SiteAuditCheckAbstract {
   public function getResultPass() {
     $items = array();
     foreach ($this->registry['requirements'] as $requirement) {
-      // Reduce verbosity.
-      if (!drush_get_option('detail') && $requirement['severity'] < REQUIREMENT_WARNING) {
-        continue;
-      }
-
       // Default to REQUIREMENT_INFO if no severity is set.
       if (!isset($requirement['severity'])) {
         $requirement['severity'] = REQUIREMENT_INFO;
+      }
+
+      // Reduce verbosity.
+      if (!drush_get_option('detail') && $requirement['severity'] < REQUIREMENT_WARNING) {
+        continue;
       }
 
       // Title: severity - value.
@@ -144,7 +144,13 @@ class SiteAuditCheckStatusSystem extends SiteAuditCheckAbstract {
     usort($this->registry['requirements'], '_system_sort_requirements');
 
     $this->percentOverride = 0;
-    $score_each = 100 / count($this->registry['requirements']);
+    $requirements_with_severity = array();
+    foreach ($this->registry['requirements'] as $key => $value) {
+      if (isset($value['severity'])) {
+        $requirements_with_severity[$key] = $value;
+      }
+    }
+    $score_each = 100 / count($requirements_with_severity);
 
     $worst_severity = REQUIREMENT_INFO;
     foreach ($this->registry['requirements'] as $requirement) {

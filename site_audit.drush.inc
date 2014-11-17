@@ -4,19 +4,21 @@
  * Drupal site auditing commands.
  */
 
-define('SITE_AUDIT_BASE_PATH', __DIR__);
+// Avoid loading multiple versions of site_audit.
+if (class_exists('SiteAuditReportAbstract')) {
+  return;
+}
 
+// Major version check.
+if (version_compare(phpversion(), '5.3.0') < 0) {
+  return drush_set_error('SITE_AUDIT_REQUIREMENTS_ERROR', dt('site_audit requires command-line PHP 5.3.0 or higher; support for PHP 5.3 was terminated August 14, 2014, and PHP 5.2 was terminated January 6, 2011. If your host is unable or unwilling to upgrade to a major supported version, consider an alternative.'));
+}
+
+// Includes.
+define('SITE_AUDIT_BASE_PATH', __DIR__);
+require_once SITE_AUDIT_BASE_PATH . '/site_audit.autoload.inc';
 require_once SITE_AUDIT_BASE_PATH . '/Report/Abstract.php';
 require_once SITE_AUDIT_BASE_PATH . '/Check/Abstract.php';
-
-// Autoload Report classes.
-spl_autoload_register(
-  function ($class) {
-    if (strpos($class, 'SiteAuditReport') === 0) {
-      require_once SITE_AUDIT_BASE_PATH . '/Report/' . substr($class, strlen('SiteAuditReport')) . '.php';
-    }
-  }
-);
 
 /**
  * Get common command options used by all site_audit commands.
@@ -131,8 +133,13 @@ function site_audit_drush_command() {
     'checks' => array(
       'ContentTypes',
       'ContentTypesUnused',
+      'DuplicateTitles',
       'Vocabularies',
       'VocabulariesUnused',
+      'FieldEnabled',
+      'FieldCount',
+      'FieldInstances',
+      'FieldsUnused',
     ),
   );
 
@@ -184,6 +191,11 @@ function site_audit_drush_command() {
       'Disabled',
     ),
   );
+  $items['audit_extensions']['options']['extension_count'] = array(
+    'description' => dt('Specify threshold for average number of extensions'),
+    'example-value' => dt('150'),
+    'value' => 'required',
+  );
 
   $arguments_gi = array(
     'url' => dt('The URL that you wish to test.'),
@@ -211,6 +223,16 @@ function site_audit_drush_command() {
     'options' => array_merge(site_audit_common_options(), $options_gi),
     'checks' => array(
       'Analyze',
+    ),
+  );
+
+  $items['audit_security'] = array(
+    'description' => dt('Audit the site for known security vulnerabilities.'),
+    'aliases' => array('asec'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+    'options' => site_audit_common_options(),
+    'checks' => array(
+      'MenuRouter',
     ),
   );
 
@@ -291,6 +313,7 @@ function site_audit_drush_command() {
       'Database',
       'Extensions',
       'Insights',
+      'Security',
       'Status',
       'Users',
       'Views',
@@ -300,6 +323,7 @@ function site_audit_drush_command() {
 
   $items['site-audit-version'] = array(
     'description' => dt('Show the Site Audit version.'),
+    'callback' => 'drush_site_audit_site_audit_version',
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
 
@@ -589,6 +613,12 @@ function drush_site_audit_audit_database() {
  * Audit extensions validation.
  */
 function drush_site_audit_audit_extensions_validate() {
+  $extension_count = drush_get_option('extension_count');
+  if ($extension_count) {
+    if ((int) $extension_count != $extension_count || $extension_count < 1) {
+      return drush_set_error(dt('The extension count must be a whole number above zero.'));
+    }
+  }
   return site_audit_version_check();
 }
 
@@ -768,9 +798,24 @@ function drush_site_audit_audit_status() {
 }
 
 /**
+ * Audit security validation.
+ */
+function drush_site_audit_audit_security_validate() {
+  return site_audit_version_check();
+}
+
+/**
+ * Render a Security report.
+ */
+function drush_site_audit_audit_security() {
+  $report = new SiteAuditReportSecurity();
+  $report->render();
+}
+
+/**
  * Display the Site Audit version.
  */
-function drush_site_audit_version() {
+function drush_site_audit_site_audit_version() {
   $info = parse_ini_file(SITE_AUDIT_BASE_PATH . '/site_audit.info');
   drush_print(dt('Site Audit v@site_audit_version', array(
     '@site_audit_version' => $info['site_audit_version'],
