@@ -233,6 +233,7 @@ function site_audit_drush_command() {
       'CountAll',
       'CountBlocked',
       'RolesList',
+      'RolesComplexity',
       'WhoIsNumberOne',
       'BlockedNumberOne',
     ),
